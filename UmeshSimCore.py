@@ -38,6 +38,8 @@ class UmeshSimNetwork(object):
 			x += length * math.cos(azimuth)
 			y += length * math.sin(azimuth)
 
+		self._running = False
+		self.start()
 
 	def scene(self):
 		return self._scene
@@ -53,15 +55,51 @@ class UmeshSimNetwork(object):
 		pass
 
 
+	def start(self):
+		if self._running:
+			raise Exception("the network is already running")
+		else:
+			self._running = True
+			self._step()
+
+
+	def stop(self):
+		if not self._running:
+			raise Exception("the network is not running")
+		else:
+			self._running = False
+
+
+	def _step(self):
+		print "step"
+		# Try to deliver pending messages from all nodes in the network
+		# to their neighbors.
+		for n in self._nodes.itervalues():
+			n.processOutbox()
+
+		# And then run the process method for all nodes.
+		for n in self._nodes.itervalues():
+			n.process()
+
+		if self._running:
+			timer = threading.Timer(1, self._step)
+			timer.daemon = True
+			timer.start()
+
+
+
+
 class UmeshSimNode(QtGui.QGraphicsItem):
 
 	COLOR_RANGE = QtGui.QColor(128, 128, 128)
-	COLOR_NB_LINKS = QtGui.QColor(255, 128, 128)
+	COLOR_NB_LINKS = QtGui.QColor(128, 128, 128)
+	COLOR_ACTIVE = QtGui.QColor(206, 92, 0)
+	COLOR_ACTIVE_BG = QtGui.QColor(240, 160, 0, 10)
 
 	COLOR_NODE_STROKE = QtGui.QColor(128, 128, 128)
 	COLOR_NODE_FILL = QtGui.QColor(192, 192, 192)
-	COLOR_NODE_HSTROKE = QtGui.QColor(192, 192, 192)
-	COLOR_NODE_HFILL = QtGui.QColor(224, 224, 224)
+	COLOR_NODE_HSTROKE = QtGui.QColor(140, 140, 140)
+	COLOR_NODE_HFILL = QtGui.QColor(210, 210, 210)
 
 	COLOR_NODE_SRC_STROKE = QtGui.QColor(76, 154, 6)
 	COLOR_NODE_SRC_FILL = QtGui.QColor(138, 226, 52)
@@ -79,6 +117,10 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 		self._name = ""
 		self._network = network
 		self._hover = False
+
+		# Indicator of activity (set to true if there was any data
+		# trasnmitted from the last call of processOutbox).
+		self._data_transmitted = False
 
 		self._text_font = QtGui.QFont()
 		self._text_font.setPointSize(10)
@@ -116,6 +158,16 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_FILL))
 		painter.drawEllipse(QtCore.QRectF(-10, -10, 20, 20));
 
+		if self._data_transmitted:
+			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_ACTIVE))
+			painter.setBrush(QtCore.Qt.NoBrush)
+			painter.drawEllipse(QtCore.QRectF(-11, -11, 22, 22));
+
+			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_ACTIVE_BG))
+			painter.setBrush(UmeshSimNode.COLOR_ACTIVE_BG)
+			radius = self.radius()
+			painter.drawEllipse(QtCore.QRectF(-radius, -radius, radius * 2, radius * 2));
+
 
 	def boundingRect(self):
 		# depends on the maximum link length
@@ -151,6 +203,7 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 				nb.append(self._network._nodes[n])
 		return nb
 
+
 	def radius(self):
 		maxlen = 0
 		for n in self._network._rtree.nearest((self.pos().x(), self.pos().y()), 10):
@@ -158,6 +211,26 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			if p.manhattanLength() < 500 and self._network._nodes[n] != self and p.manhattanLength() > maxlen:
 				maxlen = p.manhattanLength()
 		return maxlen
+
+
+	def process(self):
+		self._impl.process()
+
+
+	def processOutbox(self):
+		# Iteratively pop all messages from the item's outbox and deliver
+		# them to all its neighbors.
+		tx = False
+		while len(self._impl._outbox) > 0:
+			tx = True
+			msg = self._impl._outbox.pop()
+			for nb in self.neighbors():
+				nb._impl._inbox.append(msg)
+		# Call update to update data transmission indicators.
+		if self._data_transmitted != tx:
+			self._data_transmitted = tx
+			self.update()
+
 
 
 class UmeshSimView(QtGui.QGraphicsView):
