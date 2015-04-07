@@ -3,9 +3,9 @@ from UmeshSimCore import *
 class UmeshSimNodeImpl(object):
 
 	def __init__(self):
-		pass
+		self._inbox = []
+		self._outbox = []
 
-	def onMessageReceived(self, message):
+	def process(self):
 		pass
-
 

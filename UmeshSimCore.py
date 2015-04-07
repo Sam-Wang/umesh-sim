@@ -6,44 +6,69 @@ import threading
 import math
 import rtree
 
+from PyQt4 import QtGui, QtCore
+
 from UmeshSimNodeImpl import *
 from UmeshSimNodeAnt import *
-
-from PyQt4 import QtGui, QtCore
 
 
 class UmeshSimNetwork(object):
 
 	def __init__(self):
-
-		# the network maintains its own graphics scene for displaying
-		# all nodes and connections between them
+		# The network maintains its own graphics scene for displaying
+		# all nodes and connections between them. If a node has to be
+		# added or removed, all three lists must be handled correctly.
+		# Use addNode and deleteNode for this purpose.
 		self._scene = QtGui.QGraphicsScene()
 		self._nodes = {}
 		self._rtree = rtree.index.Index()
+
+		# Initialize the network. Create some random nodes.
 		random.seed()
 		x = 0
 		y = 0
 		for i in xrange(10000):
 			node = UmeshSimNode(x, y, UmeshSimNodeAnt(), self)
 			node.setName("node%d" % i)
-			self._scene.addItem(node)
-			self._nodes[i] = node
-			self._rtree.insert(i, (x, y))
+			nodeid = random.randint(0, 256 * 256 * 256 * 256)
+			self.addNode(node, nodeid)
 
 			azimuth = random.random() * 3.1416 * 2
-			length = random.random() * 100 + 300
+			length = random.random() * 100 + 200
 			x += length * math.cos(azimuth)
 			y += length * math.sin(azimuth)
 
+
 	def scene(self):
 		return self._scene
+
+
+	def addNode(self, node, nodeid):
+		self._scene.addItem(node)
+		self._nodes[nodeid] = node
+		self._rtree.insert(nodeid, (node.pos().x(), node.pos().y()))
+
+
+	def deleteNode(self, nodeid):
+		pass
 
 
 class UmeshSimNode(QtGui.QGraphicsItem):
 
 	COLOR_RANGE = QtGui.QColor(128, 128, 128)
 	COLOR_NB_LINKS = QtGui.QColor(255, 128, 128)
+
+	COLOR_NODE_STROKE = QtGui.QColor(128, 128, 128)
+	COLOR_NODE_FILL = QtGui.QColor(192, 192, 192)
+	COLOR_NODE_HSTROKE = QtGui.QColor(192, 192, 192)
+	COLOR_NODE_HFILL = QtGui.QColor(224, 224, 224)
+
+	COLOR_NODE_SRC_STROKE = QtGui.QColor(76, 154, 6)
+	COLOR_NODE_SRC_FILL = QtGui.QColor(138, 226, 52)
+	COLOR_NODE_DST_STROKE = QtGui.QColor(206, 92, 0)
+	COLOR_NODE_DST_FILL = QtGui.QColor(252, 175, 62)
+	COLOR_NODE_TEXT_NAME = QtGui.QColor(128, 128, 128)
+
 
 	def __init__(self, x, y, impl, network):
 		super(UmeshSimNode, self).__init__()
@@ -77,16 +102,18 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			for n in self.neighbors():
 				painter.drawLine(QtCore.QPointF(0, 0), n.pos() - self.pos())
 
+		# draw node name
 		painter.setFont(self._text_font)
-		painter.setPen(QtGui.QPen(QtGui.QColor(40, 120, 6)))
-		rect = QtCore.QRectF(-50, 15, 100, 10)
-		painter.drawText(rect, QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter, self._name)
+		painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_TEXT_NAME))
+		painter.drawText(QtCore.QRectF(-50, 15, 100, 10), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter, self._name)
 
-		painter.setPen(QtGui.QPen(QtGui.QColor(76, 154, 6)))
-		painter.setBrush(QtGui.QBrush(QtGui.QColor(138, 226, 52)))
+		# and draw the node circle
 		if self._hover:
-			painter.setBrush(QtGui.QBrush(QtGui.QColor(255, 236, 70)))
-
+			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_HSTROKE))
+			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_HFILL))
+		else:
+			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_STROKE))
+			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_FILL))
 		painter.drawEllipse(QtCore.QRectF(-10, -10, 20, 20));
 
 
@@ -131,7 +158,6 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			if p.manhattanLength() < 500 and self._network._nodes[n] != self and p.manhattanLength() > maxlen:
 				maxlen = p.manhattanLength()
 		return maxlen
-
 
 
 class UmeshSimView(QtGui.QGraphicsView):
@@ -215,3 +241,4 @@ class UmeshSimApp(QtGui.QMainWindow):
 	def closeEvent(self, event):
 		self.saveSettings()
 		QtGui.qApp.quit()
+
