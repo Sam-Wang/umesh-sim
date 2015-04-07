@@ -27,7 +27,7 @@ class UmeshSimNetwork(object):
 		random.seed()
 		x = 0
 		y = 0
-		for i in xrange(10000):
+		for i in xrange(1000):
 			node = UmeshSimNode(x, y, UmeshSimNodeAnt(), self)
 			node.setName("node%d" % i)
 			nodeid = random.randint(0, 256 * 256 * 256 * 256)
@@ -71,7 +71,6 @@ class UmeshSimNetwork(object):
 
 
 	def _step(self):
-		print "step"
 		# Try to deliver pending messages from all nodes in the network
 		# to their neighbors.
 		for n in self._nodes.itervalues():
@@ -87,14 +86,13 @@ class UmeshSimNetwork(object):
 			timer.start()
 
 
-
-
 class UmeshSimNode(QtGui.QGraphicsItem):
 
 	COLOR_RANGE = QtGui.QColor(128, 128, 128)
 	COLOR_NB_LINKS = QtGui.QColor(128, 128, 128)
 	COLOR_ACTIVE = QtGui.QColor(206, 92, 0)
 	COLOR_ACTIVE_BG = QtGui.QColor(240, 160, 0, 10)
+	COLOR_SELECTED = QtGui.QColor(255, 128, 128)
 
 	COLOR_NODE_STROKE = QtGui.QColor(128, 128, 128)
 	COLOR_NODE_FILL = QtGui.QColor(192, 192, 192)
@@ -128,13 +126,14 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 
 		self.setPos(x, y)
 		self.setAcceptHoverEvents(True)
+		self.setFlags(QtGui.QGraphicsItem.ItemIsMovable | QtGui.QGraphicsItem.ItemIsSelectable)
 
 
 	def paint(self, painter, option, widget):
 		painter.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.HighQualityAntialiasing);
 
 		# mark range and neightbors
-		if self._hover:
+		if self.isUnderMouse():
 			radius = self.radius()
 			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_RANGE))
 			painter.setBrush(QtCore.Qt.NoBrush)
@@ -150,7 +149,7 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 		painter.drawText(QtCore.QRectF(-50, 15, 100, 10), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter, self._name)
 
 		# and draw the node circle
-		if self._hover:
+		if self.isUnderMouse():
 			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_HSTROKE))
 			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_HFILL))
 		else:
@@ -167,6 +166,15 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			painter.setBrush(UmeshSimNode.COLOR_ACTIVE_BG)
 			radius = self.radius()
 			painter.drawEllipse(QtCore.QRectF(-radius, -radius, radius * 2, radius * 2));
+
+		if self.isSelected():
+			pen = QtGui.QPen(UmeshSimNode.COLOR_SELECTED)
+			pen.setWidth(3)
+			pen.setCosmetic(True)
+			pen.setStyle(QtCore.Qt.DotLine)
+			painter.setPen(pen)
+			painter.setBrush(QtCore.Qt.NoBrush)
+			painter.drawEllipse(QtCore.QRectF(-13, -13, 26, 26));
 
 
 	def boundingRect(self):
@@ -185,13 +193,13 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 
 	def hoverEnterEvent(self, event):
 		self._hover = True
-		self.update()
+		self.setCursor(QtCore.Qt.OpenHandCursor)
 		super(UmeshSimNode, self).hoverEnterEvent(event)
 
 
 	def hoverLeaveEvent(self, event):
 		self._hover = False
-		self.update()
+		self.setCursor(QtCore.Qt.ArrowCursor)
 		super(UmeshSimNode, self).hoverLeaveEvent(event)
 
 
@@ -239,13 +247,11 @@ class UmeshSimView(QtGui.QGraphicsView):
 		super(UmeshSimView, self).__init__()
 		self.setDragMode(QtGui.QGraphicsView.RubberBandDrag)
 		self._is_panning = False
-		self._mouse_pressed = False
 		self.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.HighQualityAntialiasing);
 
 
 	def mousePressEvent(self,  event):
-		if event.button() == QtCore.Qt.LeftButton:
-			self._mouse_pressed = True
+		if event.button() == QtCore.Qt.MiddleButton:
 			self._is_panning = True
 			self.setCursor(QtCore.Qt.ClosedHandCursor)
 			self._drag_pos = event.pos()
@@ -255,7 +261,7 @@ class UmeshSimView(QtGui.QGraphicsView):
 
 
 	def mouseMoveEvent(self, event):
-		if self._mouse_pressed and self._is_panning:
+		if self._is_panning:
 			newPos = event.pos()
 			diff = newPos - self._drag_pos
 			self._drag_pos = newPos
@@ -267,9 +273,8 @@ class UmeshSimView(QtGui.QGraphicsView):
 
 
 	def mouseReleaseEvent(self, event):
-		if event.button() == QtCore.Qt.LeftButton:
+		if event.button() == QtCore.Qt.MiddleButton:
 			self._is_panning = False
-			self._mouse_pressed = False
 			self.setCursor(QtCore.Qt.ArrowCursor)
 		else:
 			super(UmeshSimView, self).mouseReleaseEvent(event)
