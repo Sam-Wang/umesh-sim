@@ -223,6 +223,7 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 
 	def process(self):
 		self._impl.process()
+		self.setToolTip("<b>%s</b><br><br>%s" % (self._name, self._impl.tooltip()))
 
 
 	def processOutbox(self):

@@ -21,3 +21,7 @@ class UmeshSimNodeImpl(object):
 
 	def send(self, msg):
 		self._outbox.append(msg)
+
+
+	def tooltip(self):
+		return ""
