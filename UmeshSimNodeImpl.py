@@ -2,10 +2,10 @@ from UmeshSimCore import *
 
 class UmeshSimNodeImpl(object):
 
-	def __init__(self):
+	def __init__(self, nid):
 		self._inbox = []
 		self._outbox = []
-
+		self._id = nid
 
 	def process(self):
 		pass
@@ -25,3 +25,19 @@ class UmeshSimNodeImpl(object):
 
 	def tooltip(self):
 		return ""
+
+
+	def connections(self):
+		return {}
+
+
+	def contextMenu(self):
+		return None
+
+
+	def contextMenuAction(self, action):
+		pass
+
+
+	def color(self):
+		return None

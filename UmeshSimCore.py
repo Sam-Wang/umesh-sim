@@ -28,9 +28,9 @@ class UmeshSimNetwork(object):
 		x = 0
 		y = 0
 		for i in xrange(1000):
-			node = UmeshSimNode(x, y, UmeshSimNodeAnt(), self)
-			node.setName("node%d" % i)
 			nodeid = random.randint(0, 256 * 256 * 256 * 256)
+			node = UmeshSimNode(x, y, UmeshSimNodeAnt(nodeid), self)
+			node.setName("node%d" % i)
 			self.addNode(node, nodeid)
 
 			azimuth = random.random() * 3.1416 * 2
@@ -93,16 +93,7 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 	COLOR_ACTIVE = QtGui.QColor(206, 92, 0)
 	COLOR_ACTIVE_BG = QtGui.QColor(240, 160, 0, 10)
 	COLOR_SELECTED = QtGui.QColor(255, 128, 128)
-
-	COLOR_NODE_STROKE = QtGui.QColor(128, 128, 128)
 	COLOR_NODE_FILL = QtGui.QColor(192, 192, 192)
-	COLOR_NODE_HSTROKE = QtGui.QColor(140, 140, 140)
-	COLOR_NODE_HFILL = QtGui.QColor(210, 210, 210)
-
-	COLOR_NODE_SRC_STROKE = QtGui.QColor(76, 154, 6)
-	COLOR_NODE_SRC_FILL = QtGui.QColor(138, 226, 52)
-	COLOR_NODE_DST_STROKE = QtGui.QColor(206, 92, 0)
-	COLOR_NODE_DST_FILL = QtGui.QColor(252, 175, 62)
 	COLOR_NODE_TEXT_NAME = QtGui.QColor(128, 128, 128)
 
 
@@ -143,18 +134,29 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 			for n in self.neighbors():
 				painter.drawLine(QtCore.QPointF(0, 0), n.pos() - self.pos())
 
+		# Draw implementation devined connections
+		c = self._impl.connections()
+		for k in c.iterkeys():
+			painter.setPen(QtGui.QPen(c[k]))
+			painter.drawLine(QtCore.QPointF(0, 0), self._network._nodes[k].pos() - self.pos())
+
 		# draw node name
 		painter.setFont(self._text_font)
 		painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_TEXT_NAME))
 		painter.drawText(QtCore.QRectF(-50, 15, 100, 10), QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter, self._name)
 
+		# Get color of the node
+		color = self._impl.color()
+		if color == None:
+			color = UmeshSimNode.COLOR_NODE_FILL
+
 		# and draw the node circle
 		if self.isUnderMouse():
-			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_HSTROKE))
-			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_HFILL))
+			painter.setPen(QtGui.QPen(color.darker(150)))
+			painter.setBrush(QtGui.QBrush(color.lighter(110)))
 		else:
-			painter.setPen(QtGui.QPen(UmeshSimNode.COLOR_NODE_STROKE))
-			painter.setBrush(QtGui.QBrush(UmeshSimNode.COLOR_NODE_FILL))
+			painter.setPen(QtGui.QPen(color.darker()))
+			painter.setBrush(QtGui.QBrush(color))
 		painter.drawEllipse(QtCore.QRectF(-10, -10, 20, 20));
 
 		if self._data_transmitted:
@@ -239,6 +241,13 @@ class UmeshSimNode(QtGui.QGraphicsItem):
 		if self._data_transmitted != tx:
 			self._data_transmitted = tx
 			self.update()
+
+
+	def contextMenuEvent(self, event):
+		menu = self._impl.contextMenu()
+		if menu:
+			self._impl.contextMenuAction(menu.exec_(event.screenPos()))
+			event.accept()
 
 
 
