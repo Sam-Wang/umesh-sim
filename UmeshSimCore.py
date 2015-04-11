@@ -27,7 +27,7 @@ class UmeshSimNetwork(object):
 		random.seed()
 		x = 0
 		y = 0
-		for i in xrange(1000):
+		for i in xrange(200):
 			nodeid = random.randint(0, 256 * 256 * 256 * 256)
 			node = UmeshSimNode(x, y, UmeshSimNodeAnt(nodeid), self)
 			node.setName("node%d" % i)
@@ -81,7 +81,7 @@ class UmeshSimNetwork(object):
 			n.process()
 
 		if self._running:
-			timer = threading.Timer(1, self._step)
+			timer = threading.Timer(0.1, self._step)
 			timer.daemon = True
 			timer.start()
 
